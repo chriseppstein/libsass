@@ -6,11 +6,15 @@ Plugins are shared object files (.so on *nix and .dll on win) that can be loaded
 #include <cstring>
 #include <iostream>
 #include <stdint.h>
-#include "sass_values.h"
+#include "sass/values.h"
+#include "sass/functions.h"
 
-union Sass_Value* ADDCALL call_fn_foo(const union Sass_Value* s_args, void* cookie)
+union Sass_Value* ADDCALL call_fn_foo(const union Sass_Value* s_args, Sass_Function_Entry cb, struct Sass_Compiler* comp)
 {
+  // get the cookie we stored with the function entry
+  void * cookie = sass_function_get_cookie(cb);
   // we actually abuse the void* to store an "int"
+  // Make a Sass Number value
   return sass_make_number((intptr_t)cookie, "px");
 }
 
@@ -18,13 +22,13 @@ extern "C" const char* ADDCALL libsass_get_version() {
   return libsass_version();
 }
 
-extern "C" Sass_C_Function_List ADDCALL libsass_load_functions()
+extern "C" Sass_Function_List ADDCALL libsass_load_functions()
 {
   // allocate a custom function caller
-  Sass_C_Function_Callback fn_foo =
+  Sass_Function_Entry fn_foo =
     sass_make_function("foo()", call_fn_foo, (void*)42);
   // create list of all custom functions
-  Sass_C_Function_List fn_list = sass_make_function_list(1);
+  Sass_Function_List fn_list = sass_make_function_list(1);
   // put the only function in this plugin to the list
   sass_function_set_list_entry(fn_list, 0, fn_foo);
   // return the list
@@ -37,11 +41,11 @@ To compile the plugin you need to have LibSass already built as a shared library
 ## Compile with gcc on linux
 
 ```bash
-g++ -O2 -shared plugin.cpp -o plugin.so -fPIC -Llib -lsass
+g++ -O2 -shared lib/plugin.cpp -o plugin.so -I /path/to/libsass/include -L /path/to/libsass/lib -fPIC -Llib -lsass
 ```
 
 ## Compile with mingw on windows
 
 ```bash
-g++ -O2 -shared plugin.cpp -o plugin.dll -Llib -lsass
+g++ -O2 -shared plugin.cpp -o plugin.dll  -I path\to\libsass\include -L \path\to\libsass\lib -Llib -lsass
 ```
